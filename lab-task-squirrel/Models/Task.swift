@@ -24,7 +24,7 @@ class Task {
 
     func set(_ image: UIImage, with location: CLLocation?) {
         self.image = image
-        self.imageLocation = locatio
+        self.imageLocation = location
     }
 }
 
