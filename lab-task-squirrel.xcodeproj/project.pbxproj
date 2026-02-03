@@ -354,6 +354,9 @@
 				DEVELOPMENT_TEAM = TH98LS5T3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "lab-task-squirrel/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Permission is required in order to take a photo and store it to the list.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photos in order to add a photo to complete a task.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;
@@ -382,6 +385,9 @@
 				DEVELOPMENT_TEAM = TH98LS5T3C;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_FILE = "lab-task-squirrel/Info.plist";
+				INFOPLIST_KEY_NSCameraUsageDescription = "Camera Permission is required in order to take a photo and store it to the list.";
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "";
+				INFOPLIST_KEY_NSPhotoLibraryUsageDescription = "We need access to your photos in order to add a photo to complete a task.";
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchStoryboardName = LaunchScreen;
 				INFOPLIST_KEY_UIMainStoryboardFile = Main;

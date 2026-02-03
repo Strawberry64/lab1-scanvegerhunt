@@ -8,12 +8,13 @@
 import UIKit
 import MapKit
 import PhotosUI
+import CoreLocation
 
 
 // TODO: Import PhotosUI
 // done
 
-class TaskDetailViewController: UIViewController {
+class TaskDetailViewController: UIViewController, UINavigationControllerDelegate {
 
     @IBOutlet private weak var completedImageView: UIImageView!
     @IBOutlet private weak var completedLabel: UILabel!
@@ -28,11 +29,18 @@ class TaskDetailViewController: UIViewController {
     
     var task: Task!
     
+    private let locationManager = CLLocationManager()
+    private var currentLocation: CLLocation?
+    
     
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
+        
+        locationManager.delegate = self
+        locationManager.desiredAccuracy = kCLLocationAccuracyBest
+        locationManager.requestWhenInUseAuthorization()
+        locationManager.startUpdatingLocation()
         // TODO: Register custom annotation view
         // Register custom annotation view
         mapView.register(TaskAnnotationView.self, forAnnotationViewWithReuseIdentifier: TaskAnnotationView.identifier)
@@ -81,8 +89,42 @@ class TaskDetailViewController: UIViewController {
         viewPhoto.isHidden = !task.isComplete
     }
 
+    
+//    we need to show a pop up, then after a user select an option check if the permission to access photo library and/or camera is granted or not.
     @IBAction func didTapAttachPhotoButton(_ sender: Any) {
         // TODO: Check and/or request photo library access authorization.
+        
+        // 1. Create the alert controller
+        let alertController = UIAlertController(title: nil, message: nil, preferredStyle: .actionSheet)
+
+        // 2. Define the action for the Photo Library
+        let photoLibraryAction = UIAlertAction(title: "Photo Library", style: .default) { [weak self] _ in
+            // This function is called when "Photo Library" is clicked
+            self?.tapPhotoLibrary(sender)
+        }
+
+        // 3. Define another action (e.g., Camera)
+        let cameraAction = UIAlertAction(title: "Camera", style: .default) { [weak self]_ in
+            // This function would be called when "Camera" is clicked
+            print("Camera option selected")
+            self?.tapCameraFeed(sender)
+        }
+
+        // 4. Define a cancel action
+        let cancelAction = UIAlertAction(title: "Cancel", style: .cancel)
+
+        // 5. Add actions and present
+        alertController.addAction(photoLibraryAction)
+        alertController.addAction(cameraAction)
+        alertController.addAction(cancelAction)
+
+        present(alertController, animated: true)
+        
+        
+
+    }
+    
+    private func tapPhotoLibrary(_ sender: Any){
         if PHPhotoLibrary.authorizationStatus(for: .readWrite) != .authorized {
             // Request photo library access
             PHPhotoLibrary.requestAuthorization(for: .readWrite) { [weak self] status in
@@ -105,9 +147,57 @@ class TaskDetailViewController: UIViewController {
             // Show photo picker
             presentImagePicker()
         }
-
     }
-
+    
+    private func tapCameraFeed(_ sender: Any){
+        
+        // 1. Check if camera is available on the device
+        guard UIImagePickerController.isSourceTypeAvailable(.camera) else {
+            print("Camera not available")
+            return
+        }
+        
+        // 2. Check Camera permission
+        let statusCamera = AVCaptureDevice.authorizationStatus(for: .video)
+        switch statusCamera {
+        case .authorized:
+            self.requestLocationAndPresentCamera()
+        case .notDetermined:
+            AVCaptureDevice.requestAccess(for: .video) { [weak self] granted in
+                if granted {
+                    DispatchQueue.main.async {
+                        self?.requestLocationAndPresentCamera()
+                    }
+                }
+            }
+        default:
+            presentGoToSettingsAlert()
+        }
+    }
+    
+    private func requestLocationAndPresentCamera() {
+            // Check Location permission
+            let statusLocation = locationManager.authorizationStatus
+            
+            if statusLocation == .notDetermined {
+                locationManager.requestWhenInUseAuthorization()
+            }
+            
+            // Present camera regardless of location status;
+            // if denied, the delegate will use a default CLLocation()
+            presentCamera()
+        }
+        
+        
+    private func presentCamera() {
+        let imagePicker = UIImagePickerController()
+            imagePicker.sourceType = .camera
+            imagePicker.allowsEditing = true
+            imagePicker.delegate = self
+            present(imagePicker, animated: true)
+    }
+    
+    
     private func presentImagePicker() {
         // TODO: Create, configure and present image picker.
         // Create a configuration object
@@ -274,3 +364,71 @@ extension TaskDetailViewController: MKMapViewDelegate {
         return annotationView
     }
 }
+
+//extension TaskDetailViewController: UIImagePickerControllerDelegate, UINavigationControllerDelegate {
+//    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+//        
+//        // 1. Dismiss picker
+//        picker.dismiss(animated: true)
+//
+//        // 2. Extract the image
+//        guard let image = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage else {
+//            return
+//        }
+//
+//        // 3. Update task (Note: Camera photos do not contain location metadata by default)
+//        // You may need to use CLLocationManager to get current location if task requires it
+//        DispatchQueue.main.async { [weak self] in
+//            // Using a placeholder location if your task requires one
+//            // self?.task.set(image, with: nil)
+//            
+//            self?.updateUI()
+//        }
+//    }
+//
+//    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+//        picker.dismiss(animated: true)
+//    }
+//}
+
+extension TaskDetailViewController: UIImagePickerControllerDelegate {
+    func imagePickerController(_ picker: UIImagePickerController, didFinishPickingMediaWithInfo info: [UIImagePickerController.InfoKey : Any]) {
+        // 1. Dismiss the camera interface
+        picker.dismiss(animated: true)
+
+        // 2. Extract the captured image (prefer edited if available)
+        guard let image = info[.editedImage] as? UIImage ?? info[.originalImage] as? UIImage else {
+            return
+        }
+
+        
+        let location = currentLocation
+        // 3. Update the task and UI on the main thread
+        DispatchQueue.main.async { [weak self] in
+            // Update the task with the new image.
+            // Camera photos don't provide location metadata directly; passing nil.
+            self?.task.set(image, with: location)
+            
+            // Refresh the UI elements
+            self?.updateUI()
+            
+            // Update the map (this will return early if location is nil)
+            self?.updateMapView()
+        }
+    }
+
+    func imagePickerControllerDidCancel(_ picker: UIImagePickerController) {
+        picker.dismiss(animated: true)
+    }
+}
+
+extension TaskDetailViewController: CLLocationManagerDelegate {
+    func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
+        currentLocation = locations.last
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("Failed to get user location: \(error.localizedDescription)")
+    }
+}
+    
